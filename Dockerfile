@@ -28,7 +28,7 @@ RUN useradd -m -u 1000 appuser && \
 USER appuser
 
 # Default command (override with docker-compose)
-CMD ["python", "a2a_server.py", "--agent", "orchestrator"]
+CMD ["python", "a2a_server.py", "--agent", "ticket"]
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
