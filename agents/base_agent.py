@@ -69,7 +69,7 @@ class BaseAgent(ABC):
             },
         }
 
-    def process_request(self, user_message: str, context: Optional[Dict] = None) -> str:
+    async def process_request(self, user_message: str, context: Optional[Dict] = None) -> str:
         """
         Process a user request using the agent with tool execution.
 
@@ -82,7 +82,7 @@ class BaseAgent(ABC):
         """
         try:
             # Get available tools for this agent
-            tools = self.get_tools()
+            tools = await self.get_tools()
             
             # If no tools available, just use basic text generation
             if not tools:
