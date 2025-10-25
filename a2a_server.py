@@ -85,7 +85,7 @@ def create_agent_app(agent_class, agent_name: str) -> FastAPI:
             Agent response
         """
         try:
-            response = agent.process_request(request.message, request.context)
+            response = await agent.process_request(request.message, request.context)
             return AgentResponse(
                 response=response,
                 agent_name=agent.name,
