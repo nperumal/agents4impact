@@ -69,7 +69,7 @@ class BaseAgent(ABC):
             },
         }
 
-    async def process_request(self, user_message: str, context: Optional[Dict] = None) -> str:
+    def process_request(self, user_message: str, context: Optional[Dict] = None) -> str:
         """
         Process a user request using the agent with tool execution.
 
