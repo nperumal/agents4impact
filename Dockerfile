@@ -31,6 +31,6 @@ USER appuser
 CMD ["python", "a2a_server.py", "--agent", "maps"]
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+# HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+#     CMD curl -f http://localhost:8000/health || exit 1
 
