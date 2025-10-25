@@ -82,7 +82,7 @@ class BaseAgent(ABC):
         """
         try:
             # Get available tools for this agent
-            tools = await self.get_tools()
+            tools = self.get_tools()
             
             # If no tools available, just use basic text generation
             if not tools:
