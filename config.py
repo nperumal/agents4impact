@@ -22,10 +22,10 @@ class Config:
     BIGQUERY_LOCATION = os.getenv("BIGQUERY_LOCATION", "US")
 
     # Agent urls and ports
-    ORCHESTRATOR_URL = "https://orchestrator-568435446281.us-central1.run.app",
-    BIGQUERY_URL = "https://bigquery-568435446281.us-central1.run.app",
-    TICKET_URL = "https://ticket-568435446281.us-central1.run.app",
-    MAPS_URL = "https://maps-568435446281.us-central1.run.app",
+    ORCHESTRATOR_URL = "https://orchestrator-568435446281.us-central1.run.app"
+    BIGQUERY_URL = "https://bigquery-568435446281.us-central1.run.app"
+    TICKET_URL = "https://ticket-568435446281.us-central1.run.app"
+    MAPS_URL = "https://maps-568435446281.us-central1.run.app"
 
     ORCHESTRATOR_PORT = int(os.getenv("ORCHESTRATOR_PORT", 8000))
     BIGQUERY_AGENT_PORT = int(os.getenv("BIGQUERY_AGENT_PORT", 8001))
