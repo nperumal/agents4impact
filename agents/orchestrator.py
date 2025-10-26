@@ -216,7 +216,7 @@ Always provide helpful, accurate information and guide users to the appropriate 
                     return f"Error: {result.get('error', 'Unknown error')}"
             
             # Check for BigQuery keywords
-            bigquery_keywords = ['query', 'data', 'bigquery', 'sql', 'database', 'table', 'analyze']
+            bigquery_keywords = ['query', 'data', 'bigquery', 'sql', 'database', 'table', 'analyze', 'dataset']
             if any(keyword in message_lower for keyword in bigquery_keywords):
                 result = await self._route_to_agent("bigquery", user_message)
                 if result.get("success"):
