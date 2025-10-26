@@ -4,7 +4,6 @@
  */
 
 import { ethers } from "ethers";
-import { v4 as uuidv4 } from "uuid";
 
 // Base Sepolia configuration
 const BASE_SEPOLIA_RPC =
@@ -28,7 +27,7 @@ const ERC20_ABI = [
 ];
 
 // Payment wallet (will receive and send ticket payments)
-let paymentWallet: ethers.Wallet;
+let paymentWallet: ethers.HDNodeWallet | ethers.Wallet;
 let provider: ethers.JsonRpcProvider;
 let usdcContract: ethers.Contract;
 
@@ -127,8 +126,7 @@ export async function createPaymentRequest(
  */
 export async function checkPayment(
     paymentAddress: string,
-    expectedAmountUSDC: string,
-    fromAddress?: string
+    expectedAmountUSDC: string
 ): Promise<{
     received: boolean;
     transactionHash?: string;
@@ -137,7 +135,6 @@ export async function checkPayment(
     try {
         // Check USDC balance
         const balance = await usdcContract.balanceOf(paymentAddress);
-        const balanceUSDC = balance.toString();
 
         // Convert expected amount to BigInt for comparison
         const expectedAmount = BigInt(expectedAmountUSDC);
@@ -163,7 +160,7 @@ export async function checkPayment(
  */
 export async function monitorPayment(
     paymentAddress: string,
-    expectedAmountETH: string,
+    expectedAmountUSDC: string,
     timeoutMinutes: number = 30
 ): Promise<BlockchainPayment | null> {
     return new Promise((resolve) => {
@@ -172,10 +169,10 @@ export async function monitorPayment(
             resolve(null);
         }, timeoutMinutes * 60 * 1000);
 
-        provider.on("block", async (blockNumber) => {
+        provider.on("block", async (_blockNumber: number) => {
             const result = await checkPayment(
                 paymentAddress,
-                expectedAmountETH
+                expectedAmountUSDC
             );
 
             if (result.received) {
@@ -185,7 +182,7 @@ export async function monitorPayment(
                 resolve({
                     ticketId: "",
                     paymentAddress,
-                    amountETH: expectedAmountETH,
+                    amountUSDC: expectedAmountUSDC,
                     amountUSD: 0,
                     expiresAt: new Date().toISOString(),
                     transactionHash: result.transactionHash,
@@ -215,12 +212,19 @@ export async function verifyTransaction(txHash: string): Promise<{
 
         const receipt = await provider.getTransactionReceipt(txHash);
 
+        // Handle confirmations which can be a number or a function returning Promise<number>
+        let confirmations = 0;
+        if (receipt?.confirmations) {
+            const conf = receipt.confirmations;
+            confirmations = typeof conf === 'number' ? conf : await (conf as () => Promise<number>)();
+        }
+
         return {
             valid: true,
             amount: ethers.formatEther(tx.value),
             from: tx.from,
             to: tx.to || undefined,
-            confirmations: receipt?.confirmations || 0,
+            confirmations,
         };
     } catch (error) {
         console.error("Error verifying transaction:", error);

@@ -1,0 +1,16 @@
+src/
+tsconfig.json
+.eslintrc.json
+.prettierrc
+*.log
+node_modules/
+.DS_Store
+*.test.ts
+coverage/
+.vscode/
+.idea/
+.env
+.env.local
+*.swp
+*.swo
+*~

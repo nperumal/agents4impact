@@ -41,7 +41,7 @@ try {
 }
 
 // Health check
-app.get("/health", async (req, res) => {
+app.get("/health", async (_req, res) => {
     const networkInfo = await getNetworkInfo();
     res.json({
         status: "healthy",
@@ -85,7 +85,7 @@ app.post("/mcp/tool/get_event", (req, res) => {
 
     const venue = venues.get(event.venueId);
 
-    res.json({
+    return res.json({
         success: true,
         event,
         venue,
@@ -112,7 +112,7 @@ app.post("/mcp/tool/list_venues", (req, res) => {
 
 // Purchase tickets (Blockchain payment flow)
 app.post("/mcp/tool/purchase_tickets", async (req, res) => {
-    const { eventId, quantity, customerEmail, customerName } = req.body;
+    const { eventId, quantity } = req.body;
     const event = events.get(eventId);
 
     if (!event) {
@@ -187,7 +187,7 @@ app.post("/mcp/tool/purchase_tickets", async (req, res) => {
         paymentIntent: paymentIntent,
     };
 
-    res.json(response);
+    return res.json(response);
 });
 
 // Check payment status (with blockchain verification)
@@ -234,7 +234,7 @@ app.post("/mcp/tool/check_payment_status", async (req, res) => {
         }
     }
 
-    res.json({
+    return res.json({
         success: true,
         paymentIntent,
         ticket,
@@ -305,7 +305,7 @@ app.post("/mcp/tool/verify_transaction", async (req, res) => {
         }
     }
 
-    res.json({
+    return res.json({
         success: true,
         message: "Transaction verified",
         transaction: txVerification,
@@ -329,7 +329,7 @@ app.post("/mcp/tool/get_my_tickets", (req, res) => {
 });
 
 // Get most recent pending payment
-app.post("/mcp/tool/get_pending_payment", (req, res) => {
+app.post("/mcp/tool/get_pending_payment", (_req, res) => {
     // Find the most recent pending payment intent
     let mostRecentPending: any = null;
     let mostRecentTime = 0;
@@ -340,8 +340,8 @@ app.post("/mcp/tool/get_pending_payment", (req, res) => {
             if (createdAt > mostRecentTime) {
                 mostRecentTime = createdAt;
                 mostRecentPending = {
-                    id,
                     ...paymentIntent,
+                    id,
                 };
             }
         }
@@ -355,7 +355,7 @@ app.post("/mcp/tool/get_pending_payment", (req, res) => {
     }
 
     // Return payment details
-    res.json({
+    return res.json({
         success: true,
         paymentIntent: mostRecentPending,
     });
@@ -395,7 +395,7 @@ app.post("/mcp/tool/send_payment", async (req, res) => {
     const result = await sendPayment(toAddress, amountUSD);
 
     if (result.success) {
-        res.json({
+        return res.json({
             success: true,
             transactionHash: result.transactionHash,
             amountUSD,
@@ -405,7 +405,7 @@ app.post("/mcp/tool/send_payment", async (req, res) => {
             explorerUrl: `https://sepolia.basescan.org/tx/${result.transactionHash}`,
         });
     } else {
-        res.json({
+        return res.json({
             success: false,
             error: result.error,
         });
@@ -413,7 +413,7 @@ app.post("/mcp/tool/send_payment", async (req, res) => {
 });
 
 // Get wallet balance
-app.get("/mcp/tool/get_balance", async (req, res) => {
+app.get("/mcp/tool/get_balance", async (_req, res) => {
     const balanceInfo = await getWalletBalance();
     res.json({
         success: true,
