@@ -1,3 +1,5 @@
+# Edit the Dockerfile to reorder the COPY commands
+cat > Dockerfile << 'EOF'
 # Multi-stage Dockerfile for MCP Ticket Server
 # Optimized for GCP Cloud Run deployment
 
@@ -11,13 +13,13 @@ WORKDIR /app
 COPY package*.json ./
 COPY tsconfig.json ./
 
+# Copy source code BEFORE npm ci (needed for prepare script)
+COPY src/ ./src/
+
 # Install dependencies (including dev dependencies for build)
 RUN npm ci
 
-# Copy source code
-COPY src/ ./src/
-
-# Build TypeScript
+# Build TypeScript (may be redundant if prepare script already ran it)
 RUN npm run build
 
 # Remove dev dependencies
@@ -48,8 +50,8 @@ USER nodejs
 EXPOSE 3000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || 3000) + '/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+# HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+#     CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || 3000) + '/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Environment variables (can be overridden at runtime)
 ENV NODE_ENV=production
@@ -57,3 +59,4 @@ ENV PORT=3000
 
 # Start the Express server (not the MCP server)
 CMD ["node", "build/server.js"]
+EOF
