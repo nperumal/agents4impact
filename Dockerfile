@@ -1,36 +1,59 @@
-# Dockerfile for Google ADK A2A Agents
+# Multi-stage Dockerfile for MCP Ticket Server
+# Optimized for GCP Cloud Run deployment
 
-FROM python:3.11-slim
+# Stage 1: Build
+FROM node:18-alpine AS builder
 
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Copy package files
+COPY mcp-ticket-server/package*.json ./
+COPY mcp-ticket-server/tsconfig.json ./
 
-# Copy requirements first for better caching
-COPY requirements.txt .
+# Install dependencies (including dev dependencies for build)
+RUN npm ci
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy source code
+COPY mcp-ticket-server/src/ ./src/
 
-# Copy application code
-COPY agents/ ./agents/
-COPY a2a_server.py .
-COPY config.py .
+# Build TypeScript
+RUN npm run build
 
-# Create a non-root user
-RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
+# Remove dev dependencies
+RUN npm prune --production
 
-USER appuser
+# Stage 2: Production
+FROM node:18-alpine AS production
 
-# Default command (override with docker-compose)
-CMD ["python", "a2a_server.py", "--agent", "orchestrator"]
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Copy built files from builder stage
+COPY --from=builder /app/build ./build
+COPY --from=builder /app/node_modules ./node_modules
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001 && \
+    chown -R nodejs:nodejs /app
+
+# Switch to non-root user
+USER nodejs
+
+# Expose port (Cloud Run uses PORT env variable)
+EXPOSE 3000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+# HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+#     CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || 3000) + '/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
+# Environment variables (can be overridden at runtime)
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Start the Express server (not the MCP server)
+CMD ["node", "build/server.js"]
