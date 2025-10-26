@@ -136,7 +136,7 @@ PARAMETERS: {{"param1": "value1", "param2": "value2"}}
 User message: {user_message}"""
             
             # Generate initial response
-            response = self.client.model.generate_content(
+            response = self.model.generate_content(
                 contents=enhanced_prompt,
             )
             
