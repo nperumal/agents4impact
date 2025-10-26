@@ -48,17 +48,17 @@ Always provide helpful, accurate information and guide users to the appropriate 
         self.remote_agents = {
             "bigquery": {
                 "name": "BigQuery Agent",
-                "url": f"http://localhost:{Config.BIGQUERY_AGENT_PORT}",
+                "url": Config.BIGQUERY_URL,
                 "description": "Handles BigQuery data queries and analysis",
             },
             "ticket": {
                 "name": "Ticket Agent",
-                "url": f"http://localhost:{Config.TICKET_AGENT_PORT}",
+                "url": Config.TICKET_URL,
                 "description": "Sells event tickets (concerts, shows, venues) with USDC blockchain payments on Base Sepolia",
             },
             "maps": {
                 "name": "Maps Agent",
-                "url": f"http://localhost:{Config.MAPS_AGENT_PORT}",
+                "url": Config.MAPS_URL,
                 "description": "Provides geospatial information and maps",
             },
         }

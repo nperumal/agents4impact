@@ -27,7 +27,6 @@ class BaseAgent(ABC):
         genai.configure(api_key=Config.GOOGLE_API_KEY)
         self.model = genai.GenerativeModel(Config.MODEL_NAME)
 
-
     @abstractmethod
     def get_tools(self) -> List[Dict[str, Any]]:
         """
@@ -88,10 +87,9 @@ class BaseAgent(ABC):
             
             # If no tools available, just use basic text generation
             if not tools:
-                print("No tools available, using basic generation.")
-                response = self.model.generate_content(
-                     contents=f"{self.instructions}\n\nUser: {user_message}",
-                 )
+                response = self.models.generate_content(
+                    contents=f"{self.instructions}\n\nUser: {user_message}",
+                )
                 return response.text
             
             # Build tool descriptions for the prompt
