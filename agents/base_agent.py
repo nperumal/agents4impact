@@ -88,7 +88,7 @@ class BaseAgent(ABC):
             # If no tools available, just use basic text generation
             if not tools:
                 print("No tools available, using basic generation.")
-                response = self.models.generate_content(
+                response = self.model.generate_content(
                     contents=f"{self.instructions}\n\nUser: {user_message}",
                 )
                 return response.text
@@ -137,7 +137,7 @@ PARAMETERS: {{"param1": "value1", "param2": "value2"}}
 User message: {user_message}"""
             
             # Generate initial response
-            response = self.models.generate_content(
+            response = self.model.generate_content(
                 contents=enhanced_prompt,
             )
             
