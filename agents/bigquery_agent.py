@@ -137,7 +137,13 @@ Warn users about potentially expensive queries.""",
 
     def _list_datasets(self) -> Dict[str, Any]:
         """List all datasets."""
-        datasets = list(self.client.list_datasets())
+        try:
+            datasets = list(self.client.list_datasets())
+            print(datasets[0].dataset_id)
+            print(datasets[0].full_dataset_id)
+        except Exception as e:
+            return {"error": f"Failed to list datasets: {e}"}
+        #datasets = list(self.client.list_datasets())
         return {
             "datasets": [
                 {
@@ -145,7 +151,8 @@ Warn users about potentially expensive queries.""",
                     "full_dataset_id": dataset.full_dataset_id,
                 }
                 for dataset in datasets
-            ]
+            ],
+            "success": True,
         }
 
     def _list_tables(self, dataset_id: str) -> Dict[str, Any]:
@@ -161,6 +168,7 @@ Warn users about potentially expensive queries.""",
                 }
                 for table in tables
             ],
+            "success": True,
         }
 
     def _get_table_schema(self, dataset_id: str, table_id: str) -> Dict[str, Any]:
@@ -180,6 +188,7 @@ Warn users about potentially expensive queries.""",
             ],
             "num_rows": table.num_rows,
             "size_bytes": table.num_bytes,
+            "success": True,
         }
 
     def _execute_query(self, query: str, max_results: int = 100) -> Dict[str, Any]:
@@ -200,5 +209,6 @@ Warn users about potentially expensive queries.""",
             "rows": rows,
             "bytes_processed": query_job.total_bytes_processed,
             "bytes_billed": query_job.total_bytes_billed,
+            "success": True,
         }
 
