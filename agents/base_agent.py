@@ -24,7 +24,7 @@ class BaseAgent(ABC):
         self.model_name = Config.MODEL_NAME
 
         # Configure Gemini client
-        self.client = genai.Client(api_key=Config.GOOGLE_API_KEY)
+        genai.configure(api_key=Config.GOOGLE_API_KEY)
         self.model = genai.GenerativeModel(Config.MODEL_NAME)
 
     @abstractmethod
