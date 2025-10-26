@@ -1,7 +1,7 @@
 """Tests for agent functionality."""
 
 import pytest
-from agents import BigQueryAgent, TicketAgent, MapsAgent, OrchestratorAgent
+from agents import BigQueryAgent, TicketAgent, MapsAgent, OrchestratorAgent, ResponseSanitizerAgent
 
 
 class TestBaseAgent:
@@ -30,6 +30,12 @@ class TestBaseAgent:
         agent = OrchestratorAgent()
         assert agent.name == "Orchestrator Agent"
         assert len(agent.remote_agents) == 3
+
+    def test_response_sanitizer_agent_initialization(self):
+        """Test Response Sanitizer agent initializes correctly."""
+        agent = ResponseSanitizerAgent()
+        assert agent.name == "Response Sanitizer Agent"
+        assert "sanitiz" in agent.description.lower()
 
 
 class TestAgentTools:
@@ -69,6 +75,16 @@ class TestAgentTools:
         assert len(tools) > 0
         tool_names = [tool["name"] for tool in tools]
         assert "list_available_agents" in tool_names
+
+    def test_response_sanitizer_tools(self):
+        """Test Response Sanitizer agent tools."""
+        agent = ResponseSanitizerAgent()
+        tools = agent.get_tools()
+        assert len(tools) > 0
+        tool_names = [tool["name"] for tool in tools]
+        assert "sanitize_response" in tool_names
+        assert "format_event_list" in tool_names
+        assert "format_error_message" in tool_names
 
 
 class TestAgentCards:
@@ -208,4 +224,183 @@ class TestOrchestratorAgent:
         assert result["success"] is True
         assert "agents" in result
         assert len(result["agents"]) == 3
+
+
+@pytest.mark.asyncio
+class TestResponseSanitizerAgent:
+    """Test response sanitizer agent operations."""
+
+    async def test_sanitize_response_basic(self):
+        """Test basic response sanitization."""
+        agent = ResponseSanitizerAgent()
+        result = await agent.execute_tool(
+            "sanitize_response",
+            {
+                "response": "The operation was successful with status code 200.",
+                "context": "User asked about ticket purchase",
+                "response_type": "success",
+            },
+        )
+        
+        assert result["success"] is True
+        assert "sanitized" in result
+        assert "original" in result
+
+    async def test_remove_sensitive_data(self):
+        """Test that sensitive data is removed."""
+        agent = ResponseSanitizerAgent()
+        
+        # Test with API key
+        response_with_key = "Your api_key is abc123xyz456789012345678901234567890"
+        sanitized = agent.sanitize_for_user(response_with_key)
+        assert "abc123xyz456789012345678901234567890" not in sanitized
+        assert "[API_KEY_HIDDEN]" in sanitized
+        
+        # Test with private key
+        response_with_private = "private_key: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+        sanitized = agent.sanitize_for_user(response_with_private)
+        assert "0x1234567890abcdef" not in sanitized
+
+    async def test_format_event_list(self):
+        """Test formatting event lists."""
+        agent = ResponseSanitizerAgent()
+        events_json = """[
+            {
+                "name": "Broadway Show",
+                "date": "2025-11-01",
+                "time": "7:00 PM",
+                "venue": "Broadway Theater",
+                "priceUSD": "50",
+                "availableTickets": 100,
+                "description": "Amazing musical performance"
+            },
+            {
+                "name": "Jazz Concert",
+                "date": "2025-11-15",
+                "time": "8:00 PM",
+                "venue": "Jazz Club",
+                "priceUSD": "35",
+                "availableTickets": 50
+            }
+        ]"""
+        
+        result = await agent.execute_tool(
+            "format_event_list",
+            {"events": events_json},
+        )
+        
+        assert result["success"] is True
+        assert "formatted" in result
+        formatted = result["formatted"]
+        assert "Broadway Show" in formatted
+        assert "Jazz Concert" in formatted
+        assert "🎫" in formatted
+        assert "💰" in formatted
+        assert "$50 USDC" in formatted
+
+    async def test_format_error_message(self):
+        """Test formatting error messages."""
+        agent = ResponseSanitizerAgent()
+        
+        # Test connection error
+        result = await agent.execute_tool(
+            "format_error_message",
+            {
+                "error": "Connection refused to localhost:8000",
+                "context": "trying to connect to ticket service",
+            },
+        )
+        
+        assert result["success"] is True
+        assert "formatted" in result
+        assert "couldn't connect" in result["formatted"].lower()
+        assert "✗" in result["formatted"]
+
+    async def test_format_blockchain_info(self):
+        """Test formatting blockchain information."""
+        agent = ResponseSanitizerAgent()
+        
+        blockchain_data = {
+            "transaction_hash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+            "amount_usd": "50.00",
+            "to_address": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb7",
+            "status": "success",
+        }
+        
+        formatted = agent.format_blockchain_info(blockchain_data)
+        
+        assert "Transaction:" in formatted
+        assert "Amount:" in formatted
+        assert "$50.00 USDC" in formatted
+        assert "To:" in formatted
+        assert "Status:" in formatted
+        assert "✓" in formatted
+
+    async def test_clean_technical_terms(self):
+        """Test cleaning technical jargon."""
+        agent = ResponseSanitizerAgent()
+        
+        technical_response = "Geocoding the address using reverse geocoding API"
+        sanitized = agent.sanitize_for_user(technical_response)
+        
+        # Should replace technical terms with user-friendly ones
+        assert "find location" in sanitized.lower() or "address" in sanitized.lower()
+
+    async def test_sanitize_for_user_main_method(self):
+        """Test the main sanitize_for_user method."""
+        agent = ResponseSanitizerAgent()
+        
+        response = "Transaction completed with hash 0xabc123. Amount: 50 USDC"
+        context = "User purchased a ticket"
+        agent_name = "Ticket Agent"
+        
+        sanitized = agent.sanitize_for_user(response, context, agent_name)
+        
+        assert isinstance(sanitized, str)
+        assert len(sanitized) > 0
+        # Should not crash even with complex input
+
+    async def test_empty_event_list(self):
+        """Test handling empty event lists."""
+        agent = ResponseSanitizerAgent()
+        
+        result = await agent.execute_tool(
+            "format_event_list",
+            {"events": "[]"},
+        )
+        
+        assert result["success"] is True
+        assert "No events found" in result["formatted"]
+
+    async def test_malformed_json_handling(self):
+        """Test handling malformed JSON gracefully."""
+        agent = ResponseSanitizerAgent()
+        
+        result = await agent.execute_tool(
+            "format_event_list",
+            {"events": "not valid json{{{"},
+        )
+        
+        assert result["success"] is False
+        assert "error" in result
+
+    async def test_error_pattern_matching(self):
+        """Test various error pattern matching."""
+        agent = ResponseSanitizerAgent()
+        
+        error_cases = [
+            ("timeout error occurred", "took too long"),
+            ("unauthorized access 403", "permission"),
+            ("not found 404", "couldn't find"),
+            ("wallet insufficient balance", "doesn't have enough funds"),
+        ]
+        
+        for error, expected_phrase in error_cases:
+            result = await agent.execute_tool(
+                "format_error_message",
+                {"error": error},
+            )
+            
+            assert result["success"] is True
+            assert expected_phrase in result["formatted"].lower()
 

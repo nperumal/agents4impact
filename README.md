@@ -22,15 +22,23 @@ cd /Users/kevinjones/google/mcp-ticket-server && pkill -f "tsx watch src/server.
 │                  Orchestrator Agent                     │
 │              (High-Level Coordinator)                   │
 │                    Port: 8000                           │
+│                        │                                │
+│    ┌───────────────────┴─────────────────┐             │
+│    │                                     │             │
+│    ▼                                     ▼             │
+│ ┌────────────────────────┐   ┌─────────────────────┐  │
+│ │ Response Sanitizer     │   │  Request Routing    │  │
+│ │ (Security & UX)        │   │  Logic              │  │
+│ └────────────────────────┘   └─────────────────────┘  │
 └────────────────────┬────────────────────────────────────┘
                      │
-        ┌────────────┴────────────┬─────────────┐
-        │                         │             │
-        ▼                         ▼             ▼
-┌───────────────┐        ┌───────────────┐  ┌──────────────┐
-│ BigQuery Agent│        │ Ticket Agent  │  │  Maps Agent  │
-│   Port: 8001  │        │  Port: 8002   │  │  Port: 8003  │
-└───────────────┘        └───────┬───────┘  └──────────────┘
+        ┌────────────┴────────────┬─────────────┬─────────────┐
+        │                         │             │             │
+        ▼                         ▼             ▼             ▼
+┌───────────────┐        ┌───────────────┐  ┌──────────────┐  ┌──────────────┐
+│ BigQuery Agent│        │ Ticket Agent  │  │  Maps Agent  │  │ Search Agent │
+│   Port: 8001  │        │  Port: 8002   │  │  Port: 8003  │  │  Port: 8004  │
+└───────────────┘        └───────┬───────┘  └──────────────┘  └──────────────┘
                                  │
                                  ▼
                        ┌───────────────────┐
@@ -59,7 +67,23 @@ cd /Users/kevinjones/google/mcp-ticket-server && pkill -f "tsx watch src/server.
 -   Intelligently routes requests to appropriate agents
 -   Keyword-based routing (ticket, payment, maps, data queries)
 -   Aggregates and synthesizes multi-agent responses
+-   **Integrated Response Sanitizer** for security and user experience
 -   Provides unified interface for complex workflows
+
+### 🛡️ Response Sanitizer Agent (LLM-Powered)
+
+-   **AI-Powered Intelligence**: Uses Google Gemini to intelligently sanitize responses
+-   **Context-Aware**: Understands meaning and context, not just pattern matching
+-   **Security First**: Automatically removes sensitive data (API keys, private keys, file paths)
+-   **User-Friendly Translation**: Converts technical jargon to plain language
+-   **Smart Formatting**: Beautifies JSON and structured data for readability
+-   **Error Intelligence**: Transforms technical errors into helpful, actionable messages
+-   **Contextual Hints**: Adds relevant tips based on user actions and query context
+-   **Blockchain Simplification**: Makes crypto transactions easy to understand
+-   **Emoji Guidance**: Visual indicators for status (✓, ✗, 💰, 🎫, 📍)
+-   **Consistent Tone**: Professional, friendly responses across all agents
+-   **Fallback Safety**: Rule-based sanitization if LLM is unavailable
+-   **Double Security**: Applies regex patterns before AND after LLM processing
 
 ### 🎫 Ticket Agent + MCP Server
 
@@ -101,6 +125,15 @@ cd /Users/kevinjones/google/mcp-ticket-server && pkill -f "tsx watch src/server.
 -   Calculate distances and travel times
 -   Find nearby places (mock implementation)
 -   Generate static map URLs
+
+### 🔍 Search Agent
+
+-   **Web Search**: General web searches using Google Custom Search API
+-   **Site-Specific Search**: Search within specific websites or domains
+-   **News Search**: Find recent news articles with date filters
+-   **Image Search**: Search for images with size and type filters
+-   **Advanced Filters**: File type, exact phrases, exclusions, date ranges
+-   **Language Support**: Multi-language search capabilities
 
 ## 📋 Prerequisites
 
@@ -428,6 +461,9 @@ python a2a_server.py --agent ticket
 # Maps agent only
 python a2a_server.py --agent maps
 
+# Search agent only
+python a2a_server.py --agent search
+
 # Custom port
 python a2a_server.py --agent orchestrator --port 9000
 ```
@@ -442,7 +478,8 @@ google/
 │   ├── orchestrator.py         # Orchestrator agent
 │   ├── bigquery_agent.py       # BigQuery agent
 │   ├── ticket_agent.py         # Ticket management agent
-│   └── maps_agent.py           # Maps generation agent
+│   ├── maps_agent.py           # Maps generation agent
+│   └── search_agent.py         # Web search agent
 ├── scripts/                     # Utility scripts
 │   ├── setup.sh                # Setup script
 │   ├── start_all_agents.sh     # Start all agents

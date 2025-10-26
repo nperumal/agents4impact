@@ -1,9 +1,11 @@
 """Orchestrator agent for coordinating remote agents."""
 
 from typing import Any, Dict, List, Optional
+import requests
 import google.genai as genai
 from config import Config
 from .base_agent import BaseAgent
+from .response_sanitizer_agent import ResponseSanitizerAgent
 
 
 class OrchestratorAgent(BaseAgent):
@@ -38,6 +40,9 @@ IMPORTANT:
 
 Always provide helpful, accurate information and guide users to the appropriate resources.""",
         )
+
+        # Initialize the response sanitizer
+        self.sanitizer = ResponseSanitizerAgent()
 
         # Remote agent configurations
         self.remote_agents = {
@@ -199,7 +204,7 @@ Always provide helpful, accurate information and guide users to the appropriate 
             context: Optional context information
 
         Returns:
-            Orchestrator's response
+            Orchestrator's response (sanitized)
         """
         try:
             # Simple keyword-based routing for now
@@ -211,27 +216,59 @@ Always provide helpful, accurate information and guide users to the appropriate 
             if any(keyword in message_lower for keyword in ticket_keywords):
                 result = await self._route_to_agent("ticket", user_message)
                 if result.get("success"):
-                    return result.get("response", "No response from Ticket Agent")
+                    response = result.get("response", "No response from Ticket Agent")
+                    # Sanitize the response before returning
+                    return self.sanitizer.sanitize_for_user(
+                        response, 
+                        context=user_message,
+                        agent_name="Ticket Agent"
+                    )
                 else:
-                    return f"Error: {result.get('error', 'Unknown error')}"
+                    error = result.get('error', 'Unknown error')
+                    # Sanitize error messages too
+                    return self.sanitizer.sanitize_for_user(
+                        f"Error: {error}",
+                        context=user_message,
+                        agent_name="Ticket Agent"
+                    )
             
             # Check for BigQuery keywords
-            bigquery_keywords = ['query', 'data', 'bigquery', 'sql', 'database', 'table', 'analyze']
+            bigquery_keywords = ['query', 'data', 'bigquery', 'sql', 'database', 'table', 'analyze', 'dataset']
             if any(keyword in message_lower for keyword in bigquery_keywords):
                 result = await self._route_to_agent("bigquery", user_message)
                 if result.get("success"):
-                    return result.get("response", "No response from BigQuery Agent")
+                    response = result.get("response", "No response from BigQuery Agent")
+                    return self.sanitizer.sanitize_for_user(
+                        response,
+                        context=user_message,
+                        agent_name="BigQuery Agent"
+                    )
                 else:
-                    return f"Error: {result.get('error', 'Unknown error')}"
+                    error = result.get('error', 'Unknown error')
+                    return self.sanitizer.sanitize_for_user(
+                        f"Error: {error}",
+                        context=user_message,
+                        agent_name="BigQuery Agent"
+                    )
             
             # Check for Maps keywords
             maps_keywords = ['map', 'location', 'directions', 'geocode', 'address', 'navigation', 'route']
             if any(keyword in message_lower for keyword in maps_keywords):
                 result = await self._route_to_agent("maps", user_message)
                 if result.get("success"):
-                    return result.get("response", "No response from Maps Agent")
+                    response = result.get("response", "No response from Maps Agent")
+                    return self.sanitizer.sanitize_for_user(
+                        response,
+                        context=user_message,
+                        agent_name="Maps Agent"
+                    )
                 else:
-                    return f"Error: {result.get('error', 'Unknown error')}"
+                    error = result.get('error', 'Unknown error')
+                    return self.sanitizer.sanitize_for_user(
+                        f"Error: {error}",
+                        context=user_message,
+                        agent_name="Maps Agent"
+                    )
             
             # Default response if no clear routing
             agents_info = self._list_available_agents()
@@ -240,12 +277,23 @@ Always provide helpful, accurate information and guide users to the appropriate 
                 for agent in agents_info['agents']
             ])
             
-            return f"""I can help you with 3 specialized agents:
+            default_response = f"""I can help you with 3 specialized agents:
 
 {agents_list}
 
 What would you like to do?"""
+            
+            return self.sanitizer.sanitize_for_user(
+                default_response,
+                context=user_message,
+                agent_name="Orchestrator"
+            )
 
         except Exception as e:
-            return f"Error processing request: {str(e)}"
+            error_msg = f"Error processing request: {str(e)}"
+            return self.sanitizer.sanitize_for_user(
+                error_msg,
+                context=user_message,
+                agent_name="Orchestrator"
+            )
 
