@@ -2,6 +2,8 @@
 
 from typing import Any, Dict, List
 import json
+import googlemaps
+from datetime import datetime
 from .base_agent import BaseAgent
 from config import Config
 
@@ -28,6 +30,12 @@ Use appropriate zoom levels and map types for different use cases.""",
         )
 
         self.api_key = Config.MAPS_API_KEY
+        # Initialize Google Maps client
+        if self.api_key:
+            self.gmaps = googlemaps.Client(key=self.api_key)
+        else:
+            self.gmaps = None
+            print("Warning: MAPS_API_KEY not configured. Using mock implementations.")
 
     def get_tools(self) -> List[Dict[str, Any]]:
         """Get maps-specific tools."""
@@ -211,104 +219,300 @@ Use appropriate zoom levels and map types for different use cases.""",
 
     def _geocode(self, address: str) -> Dict[str, Any]:
         """Geocode an address to coordinates."""
-        # Mock implementation - in production, use Google Maps Geocoding API
-        return {
-            "success": True,
-            "address": address,
-            "location": {
-                "latitude": 37.7749,  # Example: San Francisco
-                "longitude": -122.4194,
-            },
-            "formatted_address": f"{address} (geocoded)",
-            "note": "This is a mock implementation. Configure MAPS_API_KEY for real geocoding.",
-        }
+        if not self.gmaps:
+            # Fallback to mock implementation
+            return {
+                "success": False,
+                "error": "MAPS_API_KEY not configured",
+                "address": address,
+                "note": "Configure MAPS_API_KEY for real geocoding.",
+            }
+        
+        try:
+            geocode_result = self.gmaps.geocode(address)
+            
+            if not geocode_result:
+                return {
+                    "success": False,
+                    "error": "No results found for the given address",
+                    "address": address,
+                }
+            
+            result = geocode_result[0]
+            location = result['geometry']['location']
+            
+            return {
+                "success": True,
+                "address": address,
+                "location": {
+                    "latitude": location['lat'],
+                    "longitude": location['lng'],
+                },
+                "formatted_address": result['formatted_address'],
+                "place_id": result['place_id'],
+                "types": result.get('types', []),
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "address": address,
+            }
 
     def _reverse_geocode(self, latitude: float, longitude: float) -> Dict[str, Any]:
         """Reverse geocode coordinates to an address."""
-        # Mock implementation - in production, use Google Maps Geocoding API
-        return {
-            "success": True,
-            "location": {"latitude": latitude, "longitude": longitude},
-            "formatted_address": f"Address at ({latitude}, {longitude})",
-            "note": "This is a mock implementation. Configure MAPS_API_KEY for real reverse geocoding.",
-        }
+        if not self.gmaps:
+            return {
+                "success": False,
+                "error": "MAPS_API_KEY not configured",
+                "location": {"latitude": latitude, "longitude": longitude},
+                "note": "Configure MAPS_API_KEY for real reverse geocoding.",
+            }
+        
+        try:
+            reverse_geocode_result = self.gmaps.reverse_geocode((latitude, longitude))
+            
+            if not reverse_geocode_result:
+                return {
+                    "success": False,
+                    "error": "No results found for the given coordinates",
+                    "location": {"latitude": latitude, "longitude": longitude},
+                }
+            
+            result = reverse_geocode_result[0]
+            
+            return {
+                "success": True,
+                "location": {"latitude": latitude, "longitude": longitude},
+                "formatted_address": result['formatted_address'],
+                "place_id": result['place_id'],
+                "types": result.get('types', []),
+                "address_components": result.get('address_components', []),
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "location": {"latitude": latitude, "longitude": longitude},
+            }
 
     def _get_directions(
         self, origin: str, destination: str, mode: str = "driving"
     ) -> Dict[str, Any]:
         """Get directions between two locations."""
-        # Mock implementation - in production, use Google Maps Directions API
-        return {
-            "success": True,
-            "origin": origin,
-            "destination": destination,
-            "mode": mode,
-            "routes": [
-                {
-                    "summary": f"Route from {origin} to {destination}",
-                    "distance": {"text": "10.5 km", "value": 10500},
-                    "duration": {"text": "15 mins", "value": 900},
-                    "steps": [
-                        {"instruction": "Head north", "distance": "500 m"},
-                        {"instruction": "Turn right", "distance": "2 km"},
-                        {"instruction": "Continue straight", "distance": "8 km"},
-                    ],
+        if not self.gmaps:
+            return {
+                "success": False,
+                "error": "MAPS_API_KEY not configured",
+                "origin": origin,
+                "destination": destination,
+                "note": "Configure MAPS_API_KEY for real directions.",
+            }
+        
+        try:
+            now = datetime.now()
+            directions_result = self.gmaps.directions(
+                origin,
+                destination,
+                mode=mode,
+                departure_time=now
+            )
+            print(directions_result)
+            if not directions_result:
+                return {
+                    "success": False,
+                    "error": "No routes found",
+                    "origin": origin,
+                    "destination": destination,
                 }
-            ],
-            "note": "This is a mock implementation. Configure MAPS_API_KEY for real directions.",
-        }
+            
+            routes = []
+            for route in directions_result:
+                leg = route['legs'][0]
+                
+                steps = []
+                for step in leg['steps']:
+                    steps.append({
+                        "instruction": step['html_instructions'].replace('<b>', '').replace('</b>', '').replace('<div style="font-size:0.9em">', ' ').replace('</div>', ''),
+                        "distance": step['distance']['text'],
+                        "duration": step['duration']['text'],
+                        "travel_mode": step['travel_mode'],
+                    })
+                
+                routes.append({
+                    "summary": route.get('summary', 'Route'),
+                    "distance": {
+                        "text": leg['distance']['text'],
+                        "value": leg['distance']['value'],
+                    },
+                    "duration": {
+                        "text": leg['duration']['text'],
+                        "value": leg['duration']['value'],
+                    },
+                    "start_address": leg['start_address'],
+                    "end_address": leg['end_address'],
+                    "steps": steps,
+                })
+            
+            return {
+                "success": True,
+                "origin": origin,
+                "destination": destination,
+                "mode": mode,
+                "routes": routes,
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "origin": origin,
+                "destination": destination,
+            }
 
     def _calculate_distance(
         self, origins: List[str], destinations: List[str], mode: str = "driving"
     ) -> Dict[str, Any]:
         """Calculate distance matrix between locations."""
-        # Mock implementation - in production, use Google Maps Distance Matrix API
-        return {
-            "success": True,
-            "origins": origins,
-            "destinations": destinations,
-            "mode": mode,
-            "matrix": [
-                [
-                    {
-                        "origin": origin,
-                        "destination": dest,
-                        "distance": {"text": "5.2 km", "value": 5200},
-                        "duration": {"text": "8 mins", "value": 480},
-                    }
-                    for dest in destinations
-                ]
-                for origin in origins
-            ],
-            "note": "This is a mock implementation. Configure MAPS_API_KEY for real distance calculations.",
-        }
+        if not self.gmaps:
+            return {
+                "success": False,
+                "error": "MAPS_API_KEY not configured",
+                "origins": origins,
+                "destinations": destinations,
+                "note": "Configure MAPS_API_KEY for real distance calculations.",
+            }
+        
+        try:
+            distance_result = self.gmaps.distance_matrix(
+                origins,
+                destinations,
+                mode=mode,
+                units="metric"
+            )
+            
+            if distance_result['status'] != 'OK':
+                return {
+                    "success": False,
+                    "error": f"API returned status: {distance_result['status']}",
+                    "origins": origins,
+                    "destinations": destinations,
+                }
+            
+            matrix = []
+            for i, origin in enumerate(origins):
+                row = []
+                for j, destination in enumerate(destinations):
+                    element = distance_result['rows'][i]['elements'][j]
+                    
+                    if element['status'] == 'OK':
+                        row.append({
+                            "origin": distance_result['origin_addresses'][i],
+                            "destination": distance_result['destination_addresses'][j],
+                            "distance": {
+                                "text": element['distance']['text'],
+                                "value": element['distance']['value'],
+                            },
+                            "duration": {
+                                "text": element['duration']['text'],
+                                "value": element['duration']['value'],
+                            },
+                            "status": "OK",
+                        })
+                    else:
+                        row.append({
+                            "origin": origin,
+                            "destination": destination,
+                            "status": element['status'],
+                            "error": "Route not found",
+                        })
+                
+                matrix.append(row)
+            
+            return {
+                "success": True,
+                "origins": distance_result['origin_addresses'],
+                "destinations": distance_result['destination_addresses'],
+                "mode": mode,
+                "matrix": matrix,
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "origins": origins,
+                "destinations": destinations,
+            }
 
     def _find_nearby_places(
         self, location: str, place_type: str = None, radius: int = 1000
     ) -> Dict[str, Any]:
         """Find nearby places."""
-        # Mock implementation - in production, use Google Maps Places API
-        return {
-            "success": True,
-            "location": location,
-            "place_type": place_type,
-            "radius": radius,
-            "places": [
-                {
-                    "name": "Example Place 1",
-                    "address": "123 Main St",
-                    "rating": 4.5,
-                    "distance": 250,
-                },
-                {
-                    "name": "Example Place 2",
-                    "address": "456 Oak Ave",
-                    "rating": 4.2,
-                    "distance": 500,
-                },
-            ],
-            "note": "This is a mock implementation. Configure MAPS_API_KEY for real nearby search.",
-        }
+        if not self.gmaps:
+            return {
+                "success": False,
+                "error": "MAPS_API_KEY not configured",
+                "location": location,
+                "note": "Configure MAPS_API_KEY for real nearby search.",
+            }
+        
+        try:
+            # First geocode the location if it's an address
+            geocode_result = self.gmaps.geocode(location)
+            if not geocode_result:
+                return {
+                    "success": False,
+                    "error": "Could not geocode location",
+                    "location": location,
+                }
+            
+            coords = geocode_result[0]['geometry']['location']
+            location_coords = (coords['lat'], coords['lng'])
+            
+            # Search for nearby places
+            places_result = self.gmaps.places_nearby(
+                location=location_coords,
+                radius=radius,
+                type=place_type
+            )
+            
+            if places_result['status'] not in ['OK', 'ZERO_RESULTS']:
+                return {
+                    "success": False,
+                    "error": f"API returned status: {places_result['status']}",
+                    "location": location,
+                }
+            
+            places = []
+            for place in places_result.get('results', []):
+                places.append({
+                    "name": place['name'],
+                    "address": place.get('vicinity', 'N/A'),
+                    "rating": place.get('rating'),
+                    "user_ratings_total": place.get('user_ratings_total'),
+                    "types": place.get('types', []),
+                    "place_id": place['place_id'],
+                    "location": {
+                        "latitude": place['geometry']['location']['lat'],
+                        "longitude": place['geometry']['location']['lng'],
+                    },
+                    "open_now": place.get('opening_hours', {}).get('open_now'),
+                })
+            
+            return {
+                "success": True,
+                "location": location,
+                "coordinates": location_coords,
+                "place_type": place_type,
+                "radius": radius,
+                "places": places,
+                "count": len(places),
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "location": location,
+            }
 
     def _generate_static_map(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Generate a static map URL."""
@@ -319,15 +523,28 @@ Use appropriate zoom levels and map types for different use cases.""",
 
         # Build Google Static Maps API URL
         base_url = "https://maps.googleapis.com/maps/api/staticmap"
-        markers_param = "|".join(markers) if markers else ""
+        
+        # URL encode center
+        import urllib.parse
+        center_encoded = urllib.parse.quote(center)
+        
+        url = f"{base_url}?center={center_encoded}&zoom={zoom}&size={size}"
 
-        url = f"{base_url}?center={center}&zoom={zoom}&size={size}"
+        # Add markers
+        if markers:
+            for marker in markers:
+                marker_encoded = urllib.parse.quote(marker)
+                url += f"&markers={marker_encoded}"
 
-        if markers_param:
-            url += f"&markers={markers_param}"
-
+        # Add API key if available
         if self.api_key:
             url += f"&key={self.api_key}"
+        else:
+            return {
+                "success": False,
+                "error": "MAPS_API_KEY not configured for static maps",
+                "center": center,
+            }
 
         return {
             "success": True,
@@ -337,4 +554,3 @@ Use appropriate zoom levels and map types for different use cases.""",
             "size": size,
             "markers": markers,
         }
-
