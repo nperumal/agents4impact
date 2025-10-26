@@ -30,7 +30,7 @@ FROM node:18-alpine AS production
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY mcp-ticket-server/package*.json ./
 
 # Copy built files from builder stage
 COPY --from=builder /app/build ./build
