@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, List, Optional
 from abc import ABC, abstractmethod
-from google import genai
+import google.generativeai as genai
 from config import Config
 
 
@@ -25,6 +25,7 @@ class BaseAgent(ABC):
 
         # Configure Gemini client
         self.client = genai.Client(api_key=Config.GOOGLE_API_KEY)
+        self.model = genai.GenerativeModel(Config.MODEL_NAME)
 
     @abstractmethod
     def get_tools(self) -> List[Dict[str, Any]]:
@@ -86,8 +87,7 @@ class BaseAgent(ABC):
             
             # If no tools available, just use basic text generation
             if not tools:
-                response = self.client.models.generate_content(
-                    model=self.model_name,
+                response = self.models.generate_content(
                     contents=f"{self.instructions}\n\nUser: {user_message}",
                 )
                 return response.text
@@ -110,6 +110,10 @@ IMPORTANT INSTRUCTIONS:
 - If they want to LIST, SHOW, or SEE available events → use 'list_events' tool
 - If they ask about a SPECIFIC event → use 'get_event_details' tool
 - If they want to PAY, SEND PAYMENT, or COMPLETE PAYMENT → use 'send_payment' tool
+- if they want to DIRECTIONS to an event → use 'get_directions' tool
+- if they want to ROUTES to an event → use 'get_routes' tool
+- If they want to ESTIMATE travel time or distance → use 'calculate_distance' tool
+PARAMETER EXTRACTION RULES:
 - ALWAYS extract parameter values from the user's message text
 - For event names: extract the exact name from phrases like "ticket for X", "buy X", "purchase X tickets"
 - Example: "Buy a ticket for Broadway Musical Night" → {{"event_id": "Broadway Musical Night", "quantity": 1}}
@@ -132,8 +136,7 @@ PARAMETERS: {{"param1": "value1", "param2": "value2"}}
 User message: {user_message}"""
             
             # Generate initial response
-            response = self.client.models.generate_content(
-                model=self.model_name,
+            response = self.models.generate_content(
                 contents=enhanced_prompt,
             )
             
