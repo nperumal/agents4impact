@@ -13,6 +13,7 @@ class Config:
 
     # Google Cloud settings
     GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")
+    GOOGLE_CLOUD_PROJECT_LOCATION = os.getenv("GOOGLE_CLOUD_PROJECT_LOCATION", "us-central1")
     # GOOGLE_APPLICATION_CREDENTIALS is optional - uses ADC if not set
     GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
