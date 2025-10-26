@@ -1,5 +1,3 @@
-# Edit the Dockerfile to reorder the COPY commands
-cat > Dockerfile << 'EOF'
 # Multi-stage Dockerfile for MCP Ticket Server
 # Optimized for GCP Cloud Run deployment
 
@@ -59,4 +57,3 @@ ENV PORT=3000
 
 # Start the Express server (not the MCP server)
 CMD ["node", "build/server.js"]
-EOF
