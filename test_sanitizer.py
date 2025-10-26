@@ -18,7 +18,7 @@ async def test_sanitizer():
     print("-" * 70)
     technical_response = """
     Connection successful to the database.
-    API Key: sk_live_1234567890abcdefghijklmnop
+    API Key: ****************
     Query executed successfully.
     Results: 42 rows returned.
     """
