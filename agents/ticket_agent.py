@@ -36,7 +36,7 @@ Always provide clear pricing and guide users through the complete purchase flow.
         )
 
         # MCP Server configuration
-        self.mcp_server_url = os.getenv("MCP_TICKET_SERVER_URL", "http://localhost:3000")
+        self.mcp_server_url = os.getenv("MCP_TICKET_SERVER_URL", "https://mcp-ticket-server-568435446281.us-central1.run.app")
         print(f"Ticket Agent connected to MCP server at: {self.mcp_server_url}")
 
     def _call_mcp(self, tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
